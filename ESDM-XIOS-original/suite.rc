@@ -1,0 +1,57 @@
+#!jinja2
+{% set NTIMES = 6 %}
+{% set NUMENS = 3 %}
+{% set NPROCX = 2 %}
+{% set NPROCY = 2 %}
+{% set XIOS_NPROC = 4 %}
+{% set NPROC = NPROCX*NPROCY %}
+{% set TOT_NPROC = NUMENS*NPROC + XIOS_NPROC %}
+{% set XIOS_DIR = '/home/users/jcole/software/xios_trunk_r1870/config_GCC_LINUX_ESDM_dev' %}
+{% set MODEL_DIR = '/group_workspaces/jasmin4/ncas_cms/glister/esdm/jasmin_centos_7.7_gcc_9.1.0_esdm' %}
+[scheduling]
+    [[dependencies]]
+        graph = "ens_test2_jasmin_esdm"
+[runtime]
+    [[root]]
+        init-script = """
+            export SPACK_ROOT=/home/users/kunkel/spack
+            . $SPACK_ROOT/share/spack/setup-env.sh
+            spack load jansson glib gcc/aafm73y gettext/3bilnvc cmake autoconf/7qjzal7 automake/b7g5fr6 perl-uri
+            
+            export MODULEPATH=$MODULEPATH:/home/users/kunkel/install/modules
+            module load kunkel/openmpi/3.1
+            module load kunkel/hdf5/1.10.6
+
+            
+            export PATH=/home/users/jcole/esdm/install/bin:$PATH
+            export LIBRARY_PATH=/home/users/jcole/esdm/install/lib:$LIBRARY_PATH
+            export LD_LIBRARY_PATH=/home/users/jcole/esdm/install/lib:$LD_LIBRARY_PATH
+            export LD_RUN_PATH=/home/users/jcole/esdm/install/lib:$LD_RUN_PATH
+            export CPATH=/home/users/jcole/esdm/install/include:$CPATH
+            module list
+        """
+    [[batch]]
+        [[[job]]]
+            batch system = slurm
+            execution time limit = PT10M
+        [[[directives]]]
+            --ntasks={{TOT_NPROC}}
+            --partition=covid_june
+            --account=covid_june
+            --chdir=/group_workspaces/jasmin4/ncas_cms/glister/esdm/slurm_chdir_test
+
+    [[ens_test2_jasmin_esdm]]
+        inherit = batch
+        script = "/home/users/glister/ens_test2_jasmin_esdm.sh"
+        [[[environment]]]
+            XIOS_EXEC={{XIOS_DIR}}/bin/xios_server.exe
+            MODEL_EXEC={{MODEL_DIR}}/xios_test
+            INPUT_DATA_NML='input_data_ens'
+            INPUT_DATA_NC={{MODEL_DIR}}/u_plev_192x145x17.nc
+            NPROCX = {{NPROCX}}
+            NPROCY = {{NPROCY}}
+            NTIMES = {{NTIMES}}
+            NUMENS = {{NUMENS}}
+            
+            LAUNCH_MPI_MODEL="-np {{NPROC}}"
+            LAUNCH_MPI_XIOS="-np {{XIOS_NPROC}}"
